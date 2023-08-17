@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "facturaya_envio_boletas": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7202",
+      "launchBrowser": false
+    }
+  }
+}
