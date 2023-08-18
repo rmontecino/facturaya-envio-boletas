@@ -12,7 +12,7 @@ namespace Facturaya.Function
     public class T_EnvioBoletas
     {
         [FunctionName("T_EnvioBoletas")]
-        public async Task RunAsync([TimerTrigger("0 */2 * * *")]TimerInfo myTimer, ILogger log)
+        public async Task RunAsync([TimerTrigger("0 0 */2 * * *")]TimerInfo myTimer, ILogger log)
         {
             try
             {
