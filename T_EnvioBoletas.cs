@@ -66,19 +66,27 @@ namespace Facturaya.Function
                         }
                     }
 
-                    log.LogInformation("Encolando mensaje para procesamiento de boletas");
-                    string json = Newtonsoft.Json.JsonConvert.SerializeObject(xmlEnvioSii);
-                    string connectionString = Environment.GetEnvironmentVariable("QueueConnectionString");
-                    var cloudStorageAccount = CloudStorageAccount.Parse(connectionString);
-                    var cloudQueueClient = cloudStorageAccount.CreateCloudQueueClient();
-                    var cloudQueue = cloudQueueClient.GetQueueReference(Environment.GetEnvironmentVariable("QueueName"));
-                    var cloudQueueMessage = new CloudQueueMessage(json);
-                    await cloudQueue.AddMessageAsync(cloudQueueMessage);
-                    log.LogInformation("Mensaje de procesamiento encolado");
+                    if (xmlEnvioSii.BlobsNamesDtes.Count > 0)
+                    {
+                        log.LogInformation("Encolando mensaje para procesamiento de boletas");
+                        string json = Newtonsoft.Json.JsonConvert.SerializeObject(xmlEnvioSii);
+                        string connectionString = Environment.GetEnvironmentVariable("QueueConnectionString");
+                        var cloudStorageAccount = CloudStorageAccount.Parse(connectionString);
+                        var cloudQueueClient = cloudStorageAccount.CreateCloudQueueClient();
+                        var cloudQueue = cloudQueueClient.GetQueueReference(Environment.GetEnvironmentVariable("QueueName"));
+                        var cloudQueueMessage = new CloudQueueMessage(json);
+                        await cloudQueue.AddMessageAsync(cloudQueueMessage);
+                        log.LogInformation("Mensaje de procesamiento encolado");
 
-                    // Wait for 10 seconds before enqueuing the next message
-                    log.LogInformation("Esperando 10 segundos para siguiente iteración");
-                    await Task.Delay(TimeSpan.FromSeconds(10));
+                        // Wait for 10 seconds before enqueuing the next message
+                        log.LogInformation("Esperando 10 segundos para siguiente iteración");
+                        await Task.Delay(TimeSpan.FromSeconds(10));
+
+                    }
+                    else
+                    {
+                        log.LogInformation("No existen boletas para este cliente");
+                    }
                 }
             }
             catch (Exception ex)
