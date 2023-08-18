@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs;
@@ -17,10 +16,11 @@ namespace Facturaya.Function
         {
             try
             {
+                log.LogInformation("Iniciando proceso de envío de boletas");
                 using var httpClient = new HttpClient();
 
-                // Fetch the list of empresas
-                var serviceUrlEmpresas = "https://facturayaapi.azurewebsites.net/api/facturaya/v1/dtes/Empresas";
+                log.LogInformation("Obteniendo datos de empresas");
+                var serviceUrlEmpresas = Environment.GetEnvironmentVariable("ServiceUrlEmpresas");
                 var empresaList = new List<EmpresaModel>();
 
                 using (var response = await httpClient.GetAsync(serviceUrlEmpresas))
@@ -32,10 +32,12 @@ namespace Facturaya.Function
                     });
                 }
 
+                log.LogInformation("Recorriendo listado de empresas");
                 foreach (var empresa in empresaList)
                 {
-                    var rutSii = "60803000-K";
-                    var serviceUrl = "https://facturayaapi.azurewebsites.net/api/facturaya/v1/boletas/BoletasGeneradas";
+                    log.LogInformation($"RUT: { empresa.IdEmpresa } razón social: { empresa.RazonSocial } ");
+                    var rutSii = Environment.GetEnvironmentVariable("RutSii");
+                    var serviceUrl = Environment.GetEnvironmentVariable("ServiceUrlBoletas");
                     var startDate = DateTime.Now.AddDays(-1).ToString("yyyy-MM-dd");
                     var endDate = DateTime.Now.ToString("yyyy-MM-dd");
 
@@ -56,7 +58,7 @@ namespace Facturaya.Function
                         var apiResponse = await response.Content.ReadAsStringAsync();
                         var boletasGeneradasList = System.Text.Json.JsonSerializer.Deserialize<List<BoletasGeneradasModel>>(apiResponse);
 
-                        Console.WriteLine($"Cantidad de boletas totales: {boletasGeneradasList.Count}");
+                        log.LogInformation($"Cantidad de boletas totales: {boletasGeneradasList.Count}");
 
                         foreach (var boletaGenerada in boletasGeneradasList)
                         {
@@ -64,21 +66,28 @@ namespace Facturaya.Function
                         }
                     }
 
+                    log.LogInformation("Encolando mensaje para procesamiento de boletas");
                     string json = Newtonsoft.Json.JsonConvert.SerializeObject(xmlEnvioSii);
-                    string connectionString = "DefaultEndpointsProtocol=https;AccountName=facturayaprd;AccountKey=wH8jV6UxBDLrKI3WsQm3esYm/2JlxqWylJ9QpottgPNpH7xmCCHcx/BhP/+QRkpvffsUwRQEb3nxP28JmpsFtw==";
+                    string connectionString = Environment.GetEnvironmentVariable("QueueConnectionString");
                     var cloudStorageAccount = CloudStorageAccount.Parse(connectionString);
                     var cloudQueueClient = cloudStorageAccount.CreateCloudQueueClient();
-                    var cloudQueue = cloudQueueClient.GetQueueReference("generaboletasetv2");
+                    var cloudQueue = cloudQueueClient.GetQueueReference(Environment.GetEnvironmentVariable("QueueName"));
                     var cloudQueueMessage = new CloudQueueMessage(json);
                     await cloudQueue.AddMessageAsync(cloudQueueMessage);
+                    log.LogInformation("Mensaje de procesamiento encolado");
 
                     // Wait for 10 seconds before enqueuing the next message
+                    log.LogInformation("Esperando 10 segundos para siguiente iteración");
                     await Task.Delay(TimeSpan.FromSeconds(10));
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"An error occurred: {ex.Message}");
+                log.LogError($"Error: {ex.Message}");
+            }
+            finally
+            {
+                log.LogInformation("Fin de proceso de envío de boletas");
             }
         }
     }
